@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dell Connect AI</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --blue:#0076CE;
+    --blue-dark:#00579B;
+    --bg:#F5F7FB;
+    --card:#FFFFFF;
+    --accent:#EAF3FF;
+    --ink:#1B2430;
+    --ink-soft:#5B6675;
+    --border:#E3E9F2;
+    --green:#1E9E6B;
+    --amber:#C77700;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  .app{display:flex;min-height:100vh;}
+
+  /* SIDEBAR */
+  .sidebar{
+    width:250px;flex-shrink:0;background:linear-gradient(180deg,var(--blue) 0%, var(--blue-dark) 100%);
+    color:#fff;padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding:0 8px 20px 8px;border-bottom:1px solid rgba(255,255,255,.18);margin-bottom:18px;}
+  .brand-mark{width:34px;height:34px;border-radius:9px;background:#fff;color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:-.5px;}
+  .brand-text{line-height:1.15;}
+  .brand-text strong{display:block;font-size:15px;}
+  .brand-text span{display:block;font-size:11px;color:rgba(255,255,255,.75);}
+
+  .nav-item{
+    display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:rgba(255,255,255,.85);
+    font-size:14px;font-weight:500;margin-bottom:2px;transition:background .15s ease;user-select:none;
+  }
+  .nav-item .ic{width:20px;text-align:center;font-size:15px;}
+  .nav-item:hover{background:rgba(255,255,255,.10);color:#fff;}
+  .nav-item.active{background:rgba(255,255,255,.18);color:#fff;}
+
+  .sidebar-footer{margin-top:24px;padding:14px;background:rgba(255,255,255,.10);border-radius:12px;font-size:12px;color:rgba(255,255,255,.85);line-height:1.5;}
+
+  /* MAIN */
+  .main{flex:1;min-width:0;padding:28px 34px 60px 34px;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:20px;flex-wrap:wrap;}
+  .page-title{font-size:22px;font-weight:700;margin:0 0 4px 0;}
+  .page-sub{color:var(--ink-soft);font-size:13.5px;margin:0;max-width:640px;}
+  .pill{background:var(--accent);color:var(--blue-dark);font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;white-space:nowrap;}
+
+  .section{display:none;}
+  .section.active{display:block;animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;}
+  .card + .card{margin-top:18px;}
+  .card-title{font-size:15px;font-weight:700;margin:0 0 4px 0;}
+  .card-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px 0;}
+
+  .grid{display:grid;gap:16px;}
+  .grid-2{grid-template-columns:1fr 1fr;}
+  .grid-3{grid-template-columns:1fr 1fr 1fr;}
+  .grid-4{grid-template-columns:repeat(4,1fr);}
+  @media(max-width:1000px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr 1fr;}}
+  @media(max-width:640px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} .sidebar{display:none;} .main{padding:18px;}}
+
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field input, .field select{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:13.5px;background:#FBFCFE;color:var(--ink);
+  }
+  .field input:focus, .field select:focus, .search-input:focus{outline:2px solid var(--blue);outline-offset:1px;}
+
+  .btn{border:none;border-radius:9px;padding:11px 18px;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:8px;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-primary:hover{background:var(--blue-dark);}
+  .btn-ghost{background:var(--accent);color:var(--blue-dark);}
+  .btn-ghost:hover{background:#dcecff;}
+  .btn-outline{background:#fff;color:var(--ink);border:1px solid var(--border);}
+  .btn-outline:hover{border-color:var(--blue);color:var(--blue);}
+  .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px;}
+
+  /* Search */
+  .search-wrap{position:relative;}
+  .search-input{width:100%;padding:14px 16px 14px 44px;border:1px solid var(--border);border-radius:12px;font-size:14.5px;background:#fff;}
+  .search-wrap .ic{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--ink-soft);}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+  .chip{
+    padding:7px 13px;border-radius:999px;background:var(--accent);color:var(--blue-dark);font-size:12.5px;font-weight:600;
+    border:1px solid transparent;
+  }
+  .chip.on{background:var(--blue);color:#fff;}
+  .chip-group-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin:14px 0 6px 0;}
+
+  /* interpretation */
+  .interp{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+  .interp-tag{background:#fff;border:1px solid var(--border);border-radius:10px;padding:9px 13px;font-size:12.5px;}
+  .interp-tag b{color:var(--blue-dark);}
+  .interp-empty{color:var(--ink-soft);font-size:13px;margin-top:14px;}
+
+  /* directory grid */
+  .directory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px;}
+  @media(max-width:1100px){.directory-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:640px){.directory-grid{grid-template-columns:1fr;}}
+
+  .emp-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .emp-head{display:flex;gap:12px;align-items:center;margin-bottom:10px;}
+  .avatar{width:42px;height:42px;border-radius:10px;background:var(--accent);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
+  .emp-name{font-size:14.5px;font-weight:700;margin:0;}
+  .emp-role{font-size:12px;color:var(--ink-soft);margin:1px 0 0 0;}
+  .emp-meta{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px;}
+  .emp-meta b{color:var(--ink);font-weight:600;}
+  .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .tag{background:var(--accent);color:var(--blue-dark);font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;}
+  .tag.mentor{background:#E8F8F0;color:var(--green);}
+  .emp-actions{display:flex;gap:8px;}
+
+  .score-badge{background:var(--blue);color:#fff;font-weight:800;font-size:15px;border-radius:10px;padding:8px 10px;text-align:center;min-width:58px;}
+  .rec-card{display:flex;gap:16px;align-items:flex-start;}
+  .rec-main{flex:1;}
+  .why-list{list-style:none;margin:10px 0 0 0;padding:0;font-size:12.5px;color:var(--ink);}
+  .why-list li{margin-bottom:5px;}
+  .why-list li:before{content:"✓ ";color:var(--green);font-weight:800;}
+
+  .intro-box{background:#FBFCFE;border:1px dashed var(--border);border-radius:10px;padding:14px;margin-top:12px;font-size:13px;line-height:1.65;white-space:pre-wrap;display:none;}
+
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;}
+  .stat-num{font-size:26px;font-weight:800;color:var(--blue-dark);}
+  .stat-label{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+
+  .erg-card{border:1px solid var(--border);border-radius:12px;padding:16px;background:#fff;}
+  .erg-card h4{margin:0 0 4px 0;font-size:14px;}
+  .erg-card p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+
+  .path-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:13.5px;font-weight:600;margin-bottom:10px;}
+  .path-row .arrow{color:var(--blue);font-weight:800;}
+
+  .form-actions{margin-top:18px;display:flex;gap:10px;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);font-size:13.5px;}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);transition:all .25s ease;pointer-events:none;z-index:50;}
+  .toast.show{opacity:1;transform:none;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">DC</div>
+      <div class="brand-text"><strong>Dell Connect AI</strong><span>Find your people</span></div>
+    </div>
+    <nav id="navList">
+      <div class="nav-item active" data-section="dashboard"><span class="ic">▣</span> Dashboard</div>
+      <div class="nav-item" data-section="profile"><span class="ic">◐</span> My Profile</div>
+      <div class="nav-item" data-section="directory"><span class="ic">☰</span> Employee Directory</div>
+      <div class="nav-item" data-section="aisearch"><span class="ic">✦</span> AI Search</div>
+      <div class="nav-item" data-section="recommendations"><span class="ic">◈</span> Match Recommendations</div>
+      <div class="nav-item" data-section="ergs"><span class="ic">◎</span> ERGs</div>
+      <div class="nav-item" data-section="careerpaths"><span class="ic">↗</span> Career Paths</div>
+    </nav>
+    <div class="sidebar-footer">Dell has 100,000+ employees — but no smart way to find the ones you'd actually want to connect with. Now you do.</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section class="section active" id="section-dashboard">
+      <div class="topbar">
+        <div>
+          <p class="page-title">Dashboard</p>
+          <p class="page-sub">A snapshot of the Dell Connect AI network — who's here, and what makes them worth meeting.</p>
+        </div>
+        <div class="pill" id="dashCount">— employees</div>
+      </div>
+      <div id="syncBanner" class="card-sub" style="display:none;margin:-10px 0 16px 2px;"></div>
+      <div class="grid grid-4" id="statGrid"></div>
+
+      <div class="card" style="margin-top:18px;">
+        <p class="card-title">Most Common</p>
+        <p class="card-sub">Patterns across the current network</p>
+        <div class="grid grid-3" id="mostCommonGrid"></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Jump back in</p>
+        <p class="card-sub">Pick up where the network can help most</p>
+        <div class="grid grid-3">
+          <button class="btn btn-outline" data-goto="aisearch">✦ Try an AI Search</button>
+          <button class="btn btn-outline" data-goto="recommendations">◈ See Your Matches</button>
+          <button class="btn btn-outline" data-goto="profile">◐ Complete Your Profile</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="section" id="section-profile">
+      <div class="topbar">
+        <div>
+          <p class="page-title">Tell Us About Yourself</p>
+          <p class="page-sub">Your profile powers Match Recommendations, ERG suggestions, and AI-generated introductions.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="grid grid-3" id="profileForm"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btnUpdateProfile">Update Profile</button>
+          <span id="profileSavedMsg" style="font-size:12.5px;color:var(--green);font-weight:600;display:none;">Profile updated ✓</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIRECTORY -->
+    <section class="section" id="section-directory">
+      <div class="topbar">
+        <div>
+          <p class="page-title">Employee Directory</p>
+          <p class="page-sub">Search across every attribute — name, school, team, hometown, skills, interests, and more.</p>
+        </div>
+        <button class="btn btn-primary" id="btnShowAddEmployee">+ Add Employee</button>
+      </div>
+
+      <div class="card" id="addEmployeeCard" style="display:none;">
+        <p class="card-title">Add Employee Profile</p>
+        <p class="card-sub">New profiles appear in the directory instantly and become searchable right away.</p>
+        <div class="grid grid-3" id="addEmployeeForm"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btnAddEmployee">Add Employee</button>
+          <button class="btn btn-outline" id="btnCancelAddEmployee">Cancel</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="search-wrap">
+          <span class="ic">⌕</span>
+          <input class="search-input" id="directorySearch" placeholder="Search name, school, team, hometown, skills, interests...">
+        </div>
+        <div id="chipFilters"></div>
+      </div>
+
+      <div id="directoryResultsMeta" class="card-sub" style="margin:14px 2px 0 2px;"></div>
+      <div class="directory-grid" id="directoryGrid"></div>
+    </section>
+
+    <!-- AI SEARCH -->
+    <section class="section" id="section-aisearch">
+      <div class="topbar">
+        <div>
+          <p class="page-title">AI Search</p>
+          <p class="page-sub">Describe who you're looking for in plain English. Dell Connect AI reads school, location, team, employer, interests, and ERGs straight from the query.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="search-wrap">
+          <span class="ic">✦</span>
+          <input class="search-input" id="aiSearchInput" placeholder="Try: Find Baylor alumni interested in coffee">
+        </div>
+        <div class="chips" style="margin-top:12px;">
+          <button class="chip example-chip">Find Baylor alumni interested in coffee</button>
+          <button class="chip example-chip">Find UTEP alumni who enjoy trivia</button>
+          <button class="chip example-chip">Find Women in Action members</button>
+          <button class="chip example-chip">Find Treasury professionals in Austin</button>
+          <button class="chip example-chip">Find people interested in mentorship</button>
+        </div>
+        <div class="card" style="background:var(--accent);border:none;margin-top:18px;" id="aiInterpretationCard">
+          <p class="card-title" style="margin-bottom:2px;">AI Interpretation</p>
+          <div class="interp" id="aiInterp"></div>
+          <div class="interp-empty" id="aiInterpEmpty">Type a query above to see how Dell Connect AI interprets it.</div>
+        </div>
+      </div>
+      <div id="aiResultsMeta" class="card-sub" style="margin:14px 2px 0 2px;"></div>
+      <div class="directory-grid" id="aiResultsGrid"></div>
+    </section>
+
+    <!-- RECOMMENDATIONS -->
+    <section class="section" id="section-recommendations">
+      <div class="topbar">
+        <div>
+          <p class="page-title">People You Should Meet</p>
+          <p class="page-sub">Ranked by shared school, hometown, location, interests, skills, career goals, ERGs, and past employers with your profile.</p>
+        </div>
+      </div>
+      <div id="recList"></div>
+    </section>
+
+    <!-- ERGS -->
+    <section class="section" id="section-ergs">
+      <div class="topbar">
+        <div>
+          <p class="page-title">Employee Resource Groups</p>
+          <p class="page-sub">Communities matched to your profile, plus every ERG active in the network.</p>
+        </div>
+      </div>
+      <div class="card">
+        <p class="card-title">Recommended Communities</p>
+        <p class="card-sub">Based on your interests, career goals, and background</p>
+        <div class="grid grid-3" id="ergRecGrid"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">All ERGs at Dell Connect AI</p>
+        <p class="card-sub">Click an ERG to see its members</p>
+        <div class="grid grid-3" id="ergAllGrid"></div>
+      </div>
+      <div class="card" id="ergPeopleCard" style="display:none;">
+        <p class="card-title" id="ergPeopleTitle"></p>
+        <div class="directory-grid" id="ergPeopleGrid"></div>
+      </div>
+    </section>
+
+    <!-- CAREER PATHS -->
+    <section class="section" id="section-careerpaths">
+      <div class="topbar">
+        <div>
+          <p class="page-title">Career Path Explorer</p>
+          <p class="page-sub">Common trajectories other Dell employees have taken — click a path to see who's walked it.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div id="pathList"></div>
+      </div>
+      <div class="card" id="pathPeopleCard" style="display:none;">
+        <p class="card-title" id="pathPeopleTitle"></p>
+        <div class="directory-grid" id="pathPeopleGrid"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   FIREBASE SYNC
+   Replace the four placeholder values below with your own
+   free Firebase project's config (Project settings > General
+   > Your apps > SDK setup and configuration > Config).
+   Until you do, the app runs in local-only mode: it still
+   works, but additions only live in this browser tab.
+========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCrtehpuXy40yoTUA5w4yonrA0BWrTmEzM",
+  authDomain: "dell-connect-ai.firebaseapp.com",
+  projectId: "dell-connect-ai",
+  storageBucket: "dell-connect-ai.firebasestorage.app",
+  appId: "1:962744498671:web:9b17c1ea704d84db815e1a"
+};
+const FIREBASE_CONFIGURED = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db = null;
+let employeesRef = null;
+let syncMode = "local"; // "local" | "syncing" | "live" | "error"
+
+/* =========================================================
+   DATA
+========================================================= */
+let nextId = 1;
+
+function emp(o){
+  // Random-ish id so IDs from different browsers/devices don't collide
+  // once this is wired to a shared Firestore collection.
+  o.id = o.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+  return o;
+}
+
+let SEED_EMPLOYEES = [
+  emp({name:"Sarah Chen",email:"sarah.chen@dell.com",currentRole:"FP&A Analyst",currentTeam:"Finance",school:"UT Austin",graduationYear:"2023",hometown:"Austin, TX",location:"Austin, TX",previousEmployer:"EY",previousDellTeam:"Global Audit",skills:["Excel","Finance","Power BI"],interests:["Investing","Coffee","Running"],ergs:["Women in Action"],careerGoals:["FP&A","Investor Relations"],openToConnectAbout:["Mentorship","Networking"],mentorAvailable:true}),
+  emp({name:"Marcus Reed",email:"marcus.reed@dell.com",currentRole:"Audit Senior",currentTeam:"Global Audit",school:"Texas A&M",graduationYear:"2021",hometown:"Houston, TX",location:"Round Rock, TX",previousEmployer:"PwC",previousDellTeam:"",skills:["SOX","Risk Assessment","SQL"],interests:["Golf","Fantasy Football","Trivia"],ergs:["Veterans ERG"],careerGoals:["Internal Audit Leadership"],openToConnectAbout:["Coffee Chats","Mentorship"],mentorAvailable:true}),
+  emp({name:"Priya Nair",email:"priya.nair@dell.com",currentRole:"Treasury Analyst",currentTeam:"Treasury",school:"UTEP",graduationYear:"2022",hometown:"El Paso, TX",location:"Austin, TX",previousEmployer:"JPMorgan",previousDellTeam:"",skills:["Cash Management","Excel","Bloomberg"],interests:["Trivia","Photography","Cooking"],ergs:["Asian Network"],careerGoals:["Treasury","Corporate Finance"],openToConnectAbout:["Networking"],mentorAvailable:false}),
+  emp({name:"Daniel Okafor",email:"daniel.okafor@dell.com",currentRole:"Strategy Associate",currentTeam:"Strategy",school:"Harvard",graduationYear:"2020",hometown:"Dallas, TX",location:"Austin, TX",previousEmployer:"McKinsey",previousDellTeam:"",skills:["Strategy","Financial Modeling","Presentations"],interests:["Basketball","Investing","Hiking"],ergs:["Black Networking Alliance"],careerGoals:["Strategy","General Management"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:true}),
+  emp({name:"Emily Zhang",email:"emily.zhang@dell.com",currentRole:"Supply Chain Analyst",currentTeam:"Supply Chain",school:"Georgia Tech",graduationYear:"2023",hometown:"Atlanta, GA",location:"Round Rock, TX",previousEmployer:"Accenture",previousDellTeam:"",skills:["Logistics","SAP","Data Analysis"],interests:["Running","Gaming","Cooking"],ergs:["Asian Network"],careerGoals:["Supply Chain Strategy"],openToConnectAbout:["Networking"],mentorAvailable:false}),
+  emp({name:"Jordan Blake",email:"jordan.blake@dell.com",currentRole:"Product Manager",currentTeam:"Product",school:"Stanford",graduationYear:"2019",hometown:"San Francisco, CA",location:"Austin, TX",previousEmployer:"Microsoft",previousDellTeam:"",skills:["Product Strategy","Roadmapping","SQL"],interests:["Golf","Investing","Photography"],ergs:["Pride ERG"],careerGoals:["Product Leadership"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Isabella Garcia",email:"isabella.garcia@dell.com",currentRole:"Marketing Specialist",currentTeam:"Marketing",school:"SMU",graduationYear:"2022",hometown:"San Antonio, TX",location:"Austin, TX",previousEmployer:"IBM",previousDellTeam:"",skills:["Content Strategy","Analytics","Adobe Suite"],interests:["Pickleball","Coffee","Trivia"],ergs:["Hispanic ERG"],careerGoals:["Brand Strategy"],openToConnectAbout:["Coffee Chats","Networking"],mentorAvailable:false}),
+  emp({name:"Ryan Whitfield",email:"ryan.whitfield@dell.com",currentRole:"Audit Intern",currentTeam:"Global Audit",school:"Baylor",graduationYear:"2027",hometown:"Waco, TX",location:"Round Rock, TX",previousEmployer:"",previousDellTeam:"",skills:["Excel","Finance"],interests:["Coffee","Pickleball","Basketball"],ergs:[],careerGoals:["FP&A","Treasury"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:false}),
+  emp({name:"Alexis Turner",email:"alexis.turner@dell.com",currentRole:"Engineering Manager",currentTeam:"Engineering",school:"Georgia Tech",graduationYear:"2016",hometown:"Charlotte, NC",location:"Austin, TX",previousEmployer:"IBM",previousDellTeam:"",skills:["Python","System Design","Leadership"],interests:["Gaming","Hiking","Fantasy Football"],ergs:["Black Networking Alliance"],careerGoals:["Engineering Leadership"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Grace Kim",email:"grace.kim@dell.com",currentRole:"Investor Relations Associate",currentTeam:"Finance",school:"UT Austin",graduationYear:"2021",hometown:"Plano, TX",location:"Austin, TX",previousEmployer:"Goldman Sachs",previousDellTeam:"Treasury",skills:["Financial Modeling","Investor Communications","Excel"],interests:["Investing","Running","Photography"],ergs:["Asian Network","Women in Action"],careerGoals:["Investor Relations","Corporate Finance"],openToConnectAbout:["Mentorship","Networking"],mentorAvailable:true}),
+  emp({name:"Malik Thompson",email:"malik.thompson@dell.com",currentRole:"Audit Manager",currentTeam:"Global Audit",school:"Texas A&M",graduationYear:"2015",hometown:"Houston, TX",location:"Round Rock, TX",previousEmployer:"KPMG",previousDellTeam:"",skills:["Risk Management","Team Leadership","SOX"],interests:["Golf","Fantasy Football","Cooking"],ergs:["Veterans ERG","Black Networking Alliance"],careerGoals:["Audit Leadership","Enterprise Risk"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Natalie Brooks",email:"natalie.brooks@dell.com",currentRole:"Treasury Manager",currentTeam:"Treasury",school:"Texas Tech",graduationYear:"2017",hometown:"Lubbock, TX",location:"Austin, TX",previousEmployer:"JPMorgan",previousDellTeam:"",skills:["Cash Management","Risk Hedging","Excel"],interests:["Investing","Trivia","Golf"],ergs:["Women in Action"],careerGoals:["Treasury Leadership"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:true}),
+  emp({name:"Kevin Alvarez",email:"kevin.alvarez@dell.com",currentRole:"Strategy Intern",currentTeam:"Strategy",school:"UTEP",graduationYear:"2026",hometown:"El Paso, TX",location:"Round Rock, TX",previousEmployer:"",previousDellTeam:"",skills:["Excel","Research"],interests:["Trivia","Basketball","Gaming"],ergs:["Hispanic ERG"],careerGoals:["Strategy","Consulting"],openToConnectAbout:["Mentorship"],mentorAvailable:false}),
+  emp({name:"Olivia Martin",email:"olivia.martin@dell.com",currentRole:"Product Designer",currentTeam:"Product",school:"SMU",graduationYear:"2020",hometown:"Dallas, TX",location:"Austin, TX",previousEmployer:"Accenture",previousDellTeam:"",skills:["UX Design","Figma","Research"],interests:["Photography","Hiking","Coffee"],ergs:["Pride ERG"],careerGoals:["Design Leadership"],openToConnectAbout:["Coffee Chats"],mentorAvailable:false}),
+  emp({name:"Ethan Brooks",email:"ethan.brooks@dell.com",currentRole:"Software Engineer",currentTeam:"Engineering",school:"UT Austin",graduationYear:"2022",hometown:"Round Rock, TX",location:"Round Rock, TX",previousEmployer:"Microsoft",previousDellTeam:"",skills:["Python","Cloud Infrastructure","SQL"],interests:["Gaming","Running","Basketball"],ergs:[],careerGoals:["Engineering Leadership"],openToConnectAbout:["Networking"],mentorAvailable:false}),
+  emp({name:"Sofia Ramirez",email:"sofia.ramirez@dell.com",currentRole:"Marketing Manager",currentTeam:"Marketing",school:"Baylor",graduationYear:"2018",hometown:"Waco, TX",location:"Austin, TX",previousEmployer:"IBM",previousDellTeam:"",skills:["Brand Strategy","Campaign Management","Analytics"],interests:["Coffee","Pickleball","Hiking"],ergs:["Hispanic ERG","Women in Action"],careerGoals:["CMO Track"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Tyler Nguyen",email:"tyler.nguyen@dell.com",currentRole:"Supply Chain Manager",currentTeam:"Supply Chain",school:"Texas Tech",graduationYear:"2016",hometown:"Fort Worth, TX",location:"Round Rock, TX",previousEmployer:"Deloitte",previousDellTeam:"",skills:["Logistics","Vendor Management","SAP"],interests:["Fantasy Football","Golf","Gaming"],ergs:["Asian Network"],careerGoals:["Supply Chain Strategy"],openToConnectAbout:["Mentorship","Networking"],mentorAvailable:true}),
+  emp({name:"Hannah Lee",email:"hannah.lee@dell.com",currentRole:"Finance Intern",currentTeam:"Finance",school:"UT Austin",graduationYear:"2027",hometown:"Dallas, TX",location:"Round Rock, TX",previousEmployer:"",previousDellTeam:"",skills:["Excel","Finance","Power BI"],interests:["Investing","Coffee","Trivia"],ergs:["Asian Network"],careerGoals:["FP&A","Investor Relations"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:false}),
+  emp({name:"Diego Fernandez",email:"diego.fernandez@dell.com",currentRole:"Audit Associate",currentTeam:"Global Audit",school:"SMU",graduationYear:"2023",hometown:"San Antonio, TX",location:"Round Rock, TX",previousEmployer:"EY",previousDellTeam:"",skills:["SOX","Excel","Data Analysis"],interests:["Pickleball","Basketball","Cooking"],ergs:["Hispanic ERG"],careerGoals:["FP&A","Audit Leadership"],openToConnectAbout:["Coffee Chats","Mentorship"],mentorAvailable:false}),
+  emp({name:"Chloe Anderson",email:"chloe.anderson@dell.com",currentRole:"Investor Relations Manager",currentTeam:"Finance",school:"Harvard",graduationYear:"2014",hometown:"Boston, MA",location:"Austin, TX",previousEmployer:"Goldman Sachs",previousDellTeam:"",skills:["Investor Communications","Financial Modeling","Public Speaking"],interests:["Running","Investing","Photography"],ergs:["Women in Action"],careerGoals:["IR Leadership"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Brandon Carter",email:"brandon.carter@dell.com",currentRole:"Strategy Manager",currentTeam:"Strategy",school:"Stanford",graduationYear:"2013",hometown:"Los Angeles, CA",location:"Round Rock, TX",previousEmployer:"McKinsey",previousDellTeam:"",skills:["Strategy","M&A","Financial Modeling"],interests:["Golf","Investing","Hiking"],ergs:["Veterans ERG"],careerGoals:["Strategy Leadership"],openToConnectAbout:["Mentorship","Networking"],mentorAvailable:true}),
+  emp({name:"Maya Patel",email:"maya.patel@dell.com",currentRole:"Treasury Intern",currentTeam:"Treasury",school:"UT Austin",graduationYear:"2027",hometown:"Houston, TX",location:"Round Rock, TX",previousEmployer:"",previousDellTeam:"",skills:["Excel","Bloomberg"],interests:["Investing","Trivia","Running"],ergs:["Asian Network"],careerGoals:["Treasury","Investor Relations"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:false}),
+  emp({name:"Connor Murphy",email:"connor.murphy@dell.com",currentRole:"Product Analyst",currentTeam:"Product",school:"Texas A&M",graduationYear:"2021",hometown:"Austin, TX",location:"Austin, TX",previousEmployer:"Accenture",previousDellTeam:"",skills:["SQL","Product Analytics","Roadmapping"],interests:["Fantasy Football","Gaming","Golf"],ergs:["Veterans ERG"],careerGoals:["Product Leadership"],openToConnectAbout:["Networking"],mentorAvailable:false}),
+  emp({name:"Ava Robinson",email:"ava.robinson@dell.com",currentRole:"Marketing Analyst",currentTeam:"Marketing",school:"UTEP",graduationYear:"2023",hometown:"El Paso, TX",location:"Austin, TX",previousEmployer:"PwC",previousDellTeam:"",skills:["Analytics","Content Strategy","Excel"],interests:["Coffee","Photography","Trivia"],ergs:["Hispanic ERG"],careerGoals:["Brand Strategy"],openToConnectAbout:["Coffee Chats"],mentorAvailable:false}),
+  emp({name:"Nathan Walker",email:"nathan.walker@dell.com",currentRole:"Engineering Lead",currentTeam:"Engineering",school:"Georgia Tech",graduationYear:"2012",hometown:"Denver, CO",location:"Austin, TX",previousEmployer:"IBM",previousDellTeam:"",skills:["System Design","Leadership","Cloud Infrastructure"],interests:["Hiking","Gaming","Golf"],ergs:["Pride ERG"],careerGoals:["Engineering Leadership"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Zoe Campbell",email:"zoe.campbell@dell.com",currentRole:"Audit Senior",currentTeam:"Global Audit",school:"Baylor",graduationYear:"2020",hometown:"Waco, TX",location:"Round Rock, TX",previousEmployer:"Deloitte",previousDellTeam:"",skills:["SOX","Risk Assessment","Data Analysis"],interests:["Cooking","Pickleball","Coffee"],ergs:["Women in Action"],careerGoals:["Audit Leadership","FP&A"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:true}),
+  emp({name:"Liam Foster",email:"liam.foster@dell.com",currentRole:"Supply Chain Intern",currentTeam:"Supply Chain",school:"Texas Tech",graduationYear:"2027",hometown:"Lubbock, TX",location:"Round Rock, TX",previousEmployer:"",previousDellTeam:"",skills:["Excel","SAP"],interests:["Fantasy Football","Basketball","Gaming"],ergs:[],careerGoals:["Supply Chain Strategy"],openToConnectAbout:["Mentorship"],mentorAvailable:false}),
+  emp({name:"Ella Simmons",email:"ella.simmons@dell.com",currentRole:"Finance Manager",currentTeam:"Finance",school:"Stanford",graduationYear:"2015",hometown:"San Francisco, CA",location:"Austin, TX",previousEmployer:"Goldman Sachs",previousDellTeam:"",skills:["Financial Modeling","Forecasting","Leadership"],interests:["Investing","Running","Photography"],ergs:["Pride ERG","Women in Action"],careerGoals:["FP&A Leadership"],openToConnectAbout:["Mentorship"],mentorAvailable:true}),
+  emp({name:"Owen Bennett",email:"owen.bennett@dell.com",currentRole:"Strategy Analyst",currentTeam:"Strategy",school:"UT Austin",graduationYear:"2023",hometown:"Corpus Christi, TX",location:"Austin, TX",previousEmployer:"KPMG",previousDellTeam:"",skills:["Financial Modeling","Strategy","Presentations"],interests:["Golf","Investing","Trivia"],ergs:["Veterans ERG"],careerGoals:["Strategy","Consulting"],openToConnectAbout:["Mentorship","Coffee Chats"],mentorAvailable:false}),
+  emp({name:"Layla Hussain",email:"layla.hussain@dell.com",currentRole:"Product Marketing Manager",currentTeam:"Marketing",school:"Harvard",graduationYear:"2017",hometown:"Chicago, IL",location:"Austin, TX",previousEmployer:"Microsoft",previousDellTeam:"",skills:["Product Strategy","Content Strategy","Analytics"],interests:["Photography","Coffee","Hiking"],ergs:["Asian Network"],careerGoals:["Brand Strategy","CMO Track"],openToConnectAbout:["Mentorship","Networking"],mentorAvailable:true})
+];
+SEED_EMPLOYEES.forEach(e => emp(e)); // stamp stable-ish ids onto seed rows
+let employees = SEED_EMPLOYEES.map(e => ({...e}));
+
+const CAREER_PATHS = [
+  {from:"Audit", to:"FP&A"},
+  {from:"Audit", to:"Treasury"},
+  {from:"Audit", to:"Investor Relations"},
+  {from:"Audit", to:"Strategy"},
+  {from:"Consulting", to:"Finance"},
+  {from:"Supply Chain", to:"Strategy"},
+  {from:"Engineering", to:"Product"}
+];
+
+let profile = {
+  name:"", email:"", currentRole:"", currentTeam:"", school:"", graduationYear:"",
+  hometown:"", location:"", previousDellTeam:"",
+  skills:[], interests:[], ergs:[], careerGoals:[], openToConnectAbout:[], mentorAvailable:false
+};
+
+/* =========================================================
+   HELPERS
+========================================================= */
+function initials(name){
+  return name.split(" ").map(p=>p[0]).slice(0,2).join("").toUpperCase();
+}
+function csvToArr(str){
+  return (str||"").split(",").map(s=>s.trim()).filter(Boolean);
+}
+function uniqueVals(getter){
+  const set = new Set();
+  employees.forEach(e=>{
+    const v = getter(e);
+    if(Array.isArray(v)) v.forEach(x=>x && set.add(x));
+    else if(v) set.add(v);
+  });
+  return [...set].sort();
+}
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+document.querySelectorAll(".nav-item").forEach(item=>{
+  item.addEventListener("click", ()=> goto(item.dataset.section));
+});
+document.querySelectorAll("[data-goto]").forEach(item=>{
+  item.addEventListener("click", ()=> goto(item.dataset.goto));
+});
+function goto(section){
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active", n.dataset.section===section));
+  document.querySelectorAll(".section").forEach(s=>s.classList.toggle("active", s.id === "section-"+section));
+  if(section==="dashboard") renderDashboard();
+  if(section==="directory") renderDirectory();
+  if(section==="recommendations") renderRecommendations();
+  if(section==="ergs") renderERGs();
+  if(section==="careerpaths") renderCareerPaths();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* =========================================================
+   PROFILE FORM (Section 1)
+========================================================= */
+const PROFILE_FIELDS = [
+  {key:"name", label:"Full Name", placeholder:"Enter your full name"},
+  {key:"email", label:"Email", placeholder:"name@dell.com"},
+  {key:"currentRole", label:"Current Role", placeholder:"Audit Intern"},
+  {key:"currentTeam", label:"Current Team", placeholder:"Global Audit & Transformation"},
+  {key:"school", label:"School", placeholder:"UT Austin"},
+  {key:"graduationYear", label:"Graduation Year", placeholder:"2027"},
+  {key:"hometown", label:"Hometown", placeholder:"Dallas, TX"},
+  {key:"location", label:"Current Location", placeholder:"Round Rock, TX"},
+  {key:"previousDellTeam", label:"Previous Dell Team", placeholder:"Global Audit"},
+  {key:"skills", label:"Skills", placeholder:"Excel, Finance, Power BI", list:true},
+  {key:"interests", label:"Interests", placeholder:"Basketball, Investing, Pickleball", list:true},
+  {key:"ergs", label:"ERGs", placeholder:"Women in Action", list:true},
+  {key:"careerGoals", label:"Career Goals", placeholder:"FP&A, Treasury, Investor Relations", list:true},
+  {key:"openToConnectAbout", label:"Open To Connect About", placeholder:"Mentorship, Networking, Coffee Chats", list:true},
+];
+
+function renderProfileForm(){
+  const wrap = document.getElementById("profileForm");
+  wrap.innerHTML = "";
+  PROFILE_FIELDS.forEach(f=>{
+    const div = document.createElement("div");
+    div.className = "field";
+    const val = f.list ? (profile[f.key]||[]).join(", ") : (profile[f.key]||"");
+    div.innerHTML = `<label>${f.label}</label><input type="text" data-key="${f.key}" data-list="${!!f.list}" placeholder="${f.placeholder}" value="${val.replace(/"/g,'&quot;')}">`;
+    wrap.appendChild(div);
+  });
+  const mentorDiv = document.createElement("div");
+  mentorDiv.className = "field";
+  mentorDiv.innerHTML = `<label>Mentor Available</label>
+    <select id="profileMentorAvailable">
+      <option value="No" ${!profile.mentorAvailable?"selected":""}>No</option>
+      <option value="Yes" ${profile.mentorAvailable?"selected":""}>Yes</option>
+    </select>`;
+  wrap.appendChild(mentorDiv);
+}
+document.getElementById("btnUpdateProfile").addEventListener("click", ()=>{
+  document.querySelectorAll("#profileForm input[data-key]").forEach(inp=>{
+    const key = inp.dataset.key;
+    profile[key] = inp.dataset.list === "true" ? csvToArr(inp.value) : inp.value.trim();
+  });
+  profile.mentorAvailable = document.getElementById("profileMentorAvailable").value === "Yes";
+  saveProfileToLocalStorage();
+  const msg = document.getElementById("profileSavedMsg");
+  msg.style.display = "inline";
+  setTimeout(()=>msg.style.display="none", 2500);
+  showToast("Profile updated");
+  renderRecommendations();
+  renderERGs();
+});
+
+/* =========================================================
+   ADD EMPLOYEE FORM (Section 2)
+========================================================= */
+const EMPLOYEE_FIELDS = [
+  {key:"name", label:"Name", placeholder:"Full name"},
+  {key:"email", label:"Email", placeholder:"name@dell.com"},
+  {key:"currentRole", label:"Current Role", placeholder:"Audit Intern"},
+  {key:"currentTeam", label:"Current Team", placeholder:"Global Audit"},
+  {key:"school", label:"School", placeholder:"UT Austin"},
+  {key:"graduationYear", label:"Graduation Year", placeholder:"2027"},
+  {key:"hometown", label:"Hometown", placeholder:"Dallas, TX"},
+  {key:"location", label:"Current Location", placeholder:"Round Rock, TX"},
+  {key:"previousDellTeam", label:"Previous Dell Team", placeholder:"Global Audit"},
+  {key:"skills", label:"Skills", placeholder:"Excel, Finance, Power BI", list:true},
+  {key:"interests", label:"Interests", placeholder:"Basketball, Investing, Pickleball", list:true},
+  {key:"erg", label:"ERG", placeholder:"Women in Action"},
+  {key:"careerGoals", label:"Career Goals", placeholder:"FP&A, Treasury", list:true},
+];
+function renderAddEmployeeForm(){
+  const wrap = document.getElementById("addEmployeeForm");
+  wrap.innerHTML = "";
+  EMPLOYEE_FIELDS.forEach(f=>{
+    const div = document.createElement("div");
+    div.className = "field";
+    div.innerHTML = `<label>${f.label}</label><input type="text" data-key="${f.key}" placeholder="${f.placeholder}">`;
+    wrap.appendChild(div);
+  });
+  const mentorDiv = document.createElement("div");
+  mentorDiv.className = "field";
+  mentorDiv.innerHTML = `<label>Mentor Available</label>
+    <select id="newEmpMentor"><option value="No">No</option><option value="Yes">Yes</option></select>`;
+  wrap.appendChild(mentorDiv);
+}
+document.getElementById("btnShowAddEmployee").addEventListener("click", ()=>{
+  const card = document.getElementById("addEmployeeCard");
+  card.style.display = card.style.display === "none" ? "block" : "none";
+});
+document.getElementById("btnCancelAddEmployee").addEventListener("click", ()=>{
+  document.getElementById("addEmployeeCard").style.display = "none";
+});
+document.getElementById("btnAddEmployee").addEventListener("click", ()=>{
+  const data = {};
+  document.querySelectorAll("#addEmployeeForm input[data-key]").forEach(inp=>{
+    data[inp.dataset.key] = inp.value.trim();
+  });
+  if(!data.name){ showToast("Name is required"); return; }
+  const newEmp = emp({
+    name:data.name, email:data.email||"", currentRole:data.currentRole||"",
+    currentTeam:data.currentTeam||"", school:data.school||"", graduationYear:data.graduationYear||"",
+    hometown:data.hometown||"", location:data.location||"", previousEmployer:"",
+    previousDellTeam:data.previousDellTeam||"", skills:csvToArr(data.skills), interests:csvToArr(data.interests),
+    ergs: data.erg ? [data.erg] : [], careerGoals:csvToArr(data.careerGoals),
+    openToConnectAbout:[], mentorAvailable: document.getElementById("newEmpMentor").value === "Yes"
+  });
+  employees.push(newEmp);
+  renderAddEmployeeForm();
+  document.getElementById("addEmployeeCard").style.display = "none";
+
+  if(syncMode === "live" && employeesRef){
+    employeesRef.doc(String(newEmp.id)).set(newEmp)
+      .then(()=> showToast(`${newEmp.name} added — synced to everyone on this link`))
+      .catch(err=>{
+        console.error("Add failed:", err);
+        showToast(`${newEmp.name} added locally, but sync failed`);
+      });
+    // onSnapshot listener re-renders everything once the write lands, so skip local re-render here.
+    return;
+  }
+
+  showToast(`${newEmp.name} added to the directory (local-only — add a Firebase config to sync this)`);
+  renderDirectory();
+  renderDashboard();
+  rebuildChipFilters();
+});
+
+/* =========================================================
+   DIRECTORY (Search + Chip Filters + Cards) — Section 12/13
+========================================================= */
+let activeChips = { school:new Set(), location:new Set(), interests:new Set(), careerGoals:new Set(), ergs:new Set() };
+
+function rebuildChipFilters(){
+  const groups = [
+    {key:"school", label:"Schools", values:uniqueVals(e=>e.school)},
+    {key:"location", label:"Locations", values:uniqueVals(e=>[e.location,e.hometown])},
+    {key:"interests", label:"Interests", values:uniqueVals(e=>e.interests)},
+    {key:"careerGoals", label:"Career Goals", values:uniqueVals(e=>e.careerGoals)},
+    {key:"ergs", label:"ERGs", values:uniqueVals(e=>e.ergs)},
+  ];
+  const wrap = document.getElementById("chipFilters");
+  wrap.innerHTML = "";
+  groups.forEach(g=>{
+    if(!g.values.length) return;
+    const label = document.createElement("div");
+    label.className = "chip-group-label";
+    label.textContent = g.label;
+    wrap.appendChild(label);
+    const row = document.createElement("div");
+    row.className = "chips";
+    g.values.forEach(v=>{
+      const btn = document.createElement("button");
+      btn.className = "chip" + (activeChips[g.key].has(v) ? " on" : "");
+      btn.textContent = v;
+      btn.addEventListener("click", ()=>{
+        if(activeChips[g.key].has(v)) activeChips[g.key].delete(v);
+        else activeChips[g.key].add(v);
+        rebuildChipFilters();
+        renderDirectory();
+      });
+      row.appendChild(btn);
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function matchesChips(e){
+  const checks = [
+    activeChips.school.size===0 || activeChips.school.has(e.school),
+    activeChips.location.size===0 || activeChips.location.has(e.location) || activeChips.location.has(e.hometown),
+    activeChips.interests.size===0 || e.interests.some(i=>activeChips.interests.has(i)),
+    activeChips.careerGoals.size===0 || e.careerGoals.some(i=>activeChips.careerGoals.has(i)),
+    activeChips.ergs.size===0 || e.ergs.some(i=>activeChips.ergs.has(i)),
+  ];
+  return checks.every(Boolean);
+}
+
+function textSearchMatch(e, q){
+  if(!q) return true;
+  q = q.toLowerCase();
+  const haystack = [
+    e.name, e.email, e.currentRole, e.currentTeam, e.school, e.graduationYear,
+    e.hometown, e.location, e.previousDellTeam,
+    ...(e.skills||[]), ...(e.interests||[]), ...(e.ergs||[]), ...(e.careerGoals||[])
+  ].join(" ").toLowerCase();
+  return haystack.includes(q);
+}
+
+function empCardHTML(e, opts){
+  opts = opts || {};
+  return `
+  <div class="emp-card">
+    <div class="emp-head">
+      <div class="avatar">${initials(e.name)}</div>
+      <div>
+        <p class="emp-name">${e.name}</p>
+        <p class="emp-role">${e.currentRole || "—"} · ${e.currentTeam || "—"}</p>
+      </div>
+    </div>
+    <div class="emp-meta">
+      <div><b>School:</b> ${e.school || "—"}${e.graduationYear ? " '"+String(e.graduationYear).slice(-2) : ""}</div>
+      <div><b>Location:</b> ${e.location || "—"} <span style="color:#9AA5B4;">(from ${e.hometown||"—"})</span></div>
+    </div>
+    <div class="tag-row">
+      ${(e.ergs||[]).map(t=>`<span class="tag">${t}</span>`).join("")}
+      ${(e.interests||[]).slice(0,3).map(t=>`<span class="tag">${t}</span>`).join("")}
+      ${e.mentorAvailable ? `<span class="tag mentor">Mentor Available</span>` : ""}
+    </div>
+    <div class="emp-actions">
+      <a class="btn btn-ghost btn-sm" href="mailto:${e.email||''}">✉ Email</a>
+      ${opts.extraButton || ""}
+    </div>
+  </div>`;
+}
+
+function renderDirectory(){
+  rebuildChipFilters();
+  const q = document.getElementById("directorySearch").value.trim();
+  const results = employees.filter(e=> textSearchMatch(e,q) && matchesChips(e));
+  document.getElementById("directoryResultsMeta").textContent = `${results.length} of ${employees.length} employees`;
+  const grid = document.getElementById("directoryGrid");
+  grid.innerHTML = results.length ? results.map(e=>empCardHTML(e)).join("") :
+    `<div class="empty-state" style="grid-column:1/-1;">No employees match your filters. Try clearing a chip or search term.</div>`;
+}
+document.getElementById("directorySearch").addEventListener("input", renderDirectory);
+
+/* =========================================================
+   AI SEARCH — Sections 3 & 4
+========================================================= */
+function buildVocab(){
+  return {
+    school: uniqueVals(e=>e.school),
+    location: uniqueVals(e=>[e.location, e.hometown]),
+    currentTeam: uniqueVals(e=>[e.currentTeam, e.previousDellTeam]),
+    interests: uniqueVals(e=>e.interests),
+    ergs: uniqueVals(e=>e.ergs),
+    careerGoals: uniqueVals(e=>e.careerGoals),
+    skills: uniqueVals(e=>e.skills),
+  };
+}
+
+function interpretQuery(query){
+  const q = " " + query.toLowerCase() + " ";
+  const vocab = buildVocab();
+  const matched = { school:[], location:[], currentTeam:[], interests:[], ergs:[], careerGoals:[], skills:[] };
+
+  Object.keys(vocab).forEach(cat=>{
+    // longest values first so "Texas A&M" beats a generic "Texas" style collision
+    const values = [...vocab[cat]].sort((a,b)=>b.length-a.length);
+    values.forEach(v=>{
+      if(!v) return;
+      if(q.includes(v.toLowerCase())){
+        matched[cat].push(v);
+      }
+    });
+  });
+
+  // keyword heuristics
+  let mentorship = false, auditors = false;
+  if(/mentor/.test(q)) mentorship = true;
+  if(/auditor/.test(q)) auditors = true;
+
+  return { matched, mentorship, auditors };
+}
+
+function runAISearch(query, interp){
+  const { matched, mentorship, auditors } = interp;
+  return employees.filter(e=>{
+    const checks = [];
+    if(matched.school.length) checks.push(matched.school.includes(e.school));
+    if(matched.location.length) checks.push(matched.location.includes(e.location) || matched.location.includes(e.hometown));
+    if(matched.currentTeam.length) checks.push(matched.currentTeam.includes(e.currentTeam) || matched.currentTeam.includes(e.previousDellTeam));
+    if(matched.interests.length) checks.push(e.interests.some(i=>matched.interests.includes(i)));
+    if(matched.ergs.length) checks.push(e.ergs.some(i=>matched.ergs.includes(i)));
+    if(matched.careerGoals.length) checks.push(e.careerGoals.some(i=>matched.careerGoals.includes(i)));
+    if(matched.skills.length) checks.push(e.skills.some(i=>matched.skills.includes(i)));
+    if(mentorship) checks.push(e.openToConnectAbout.includes("Mentorship") || e.mentorAvailable);
+    if(auditors) checks.push(/audit/i.test(e.currentTeam) || /audit/i.test(e.previousDellTeam) || /audit/i.test(e.currentRole));
+
+    if(checks.length === 0){
+      // fallback to plain text search across all fields
+      return textSearchMatch(e, query);
+    }
+    return checks.every(Boolean);
+  });
+}
+
+function renderAISearch(){
+  const query = document.getElementById("aiSearchInput").value.trim();
+  const interpCard = document.getElementById("aiInterp");
+  const emptyMsg = document.getElementById("aiInterpEmpty");
+  const grid = document.getElementById("aiResultsGrid");
+  const meta = document.getElementById("aiResultsMeta");
+
+  if(!query){
+    interpCard.innerHTML = "";
+    emptyMsg.style.display = "block";
+    grid.innerHTML = "";
+    meta.textContent = "";
+    return;
+  }
+
+  const interp = interpretQuery(query);
+  const results = runAISearch(query, interp);
+
+  const labelMap = {school:"School", location:"Location", currentTeam:"Team", interests:"Interest", ergs:"ERG", careerGoals:"Career Goal", skills:"Skill"};
+  let tags = [];
+  Object.keys(interp.matched).forEach(cat=>{
+    if(interp.matched[cat].length){
+      tags.push(`<div class="interp-tag">${labelMap[cat]} = <b>${interp.matched[cat].join(" / ")}</b></div>`);
+    }
+  });
+  if(interp.mentorship) tags.push(`<div class="interp-tag">Intent = <b>Mentorship</b></div>`);
+  if(interp.auditors) tags.push(`<div class="interp-tag">Role = <b>Audit</b></div>`);
+  tags.push(`<div class="interp-tag">Matches Found = <b>${results.length}</b></div>`);
+
+  interpCard.innerHTML = tags.join("");
+  emptyMsg.style.display = "none";
+  meta.textContent = `${results.length} match${results.length===1?"":"es"} for "${query}"`;
+  grid.innerHTML = results.length ? results.map(e=>empCardHTML(e)).join("") :
+    `<div class="empty-state" style="grid-column:1/-1;">No matches yet. Try a broader phrase like a school name or interest.</div>`;
+}
+document.getElementById("aiSearchInput").addEventListener("input", renderAISearch);
+document.querySelectorAll(".example-chip").forEach(chip=>{
+  chip.addEventListener("click", ()=>{
+    document.getElementById("aiSearchInput").value = chip.textContent;
+    renderAISearch();
+  });
+});
+
+/* =========================================================
+   MATCH RECOMMENDATIONS — Sections 5, 6, 7
+========================================================= */
+function computeMatch(target){
+  let score = 0;
+  const reasons = [];
+
+  if(profile.school && target.school === profile.school){ score += 15; reasons.push("Same School"); }
+  if(profile.hometown && target.hometown === profile.hometown){ score += 10; reasons.push("Same Hometown"); }
+  if(profile.location && target.location === profile.location){ score += 10; reasons.push("Same Location"); }
+
+  const sharedInterests = (target.interests||[]).filter(i=>(profile.interests||[]).includes(i));
+  sharedInterests.forEach(i=>{ score += 5; reasons.push(`Shared Interest: ${i}`); });
+
+  const sharedSkills = (target.skills||[]).filter(i=>(profile.skills||[]).includes(i));
+  sharedSkills.forEach(i=>{ score += 5; reasons.push(`Shared Skill: ${i}`); });
+
+  const sharedGoals = (target.careerGoals||[]).filter(i=>(profile.careerGoals||[]).includes(i));
+  if(sharedGoals.length){ score += 8; reasons.push("Same Career Goal"); }
+
+  const sharedErg = (target.ergs||[]).filter(i=>(profile.ergs||[]).includes(i));
+  if(sharedErg.length){ score += 8; reasons.push(`Shared ERG: ${sharedErg[0]}`); }
+
+  if(target.mentorAvailable){ score += 5; reasons.push("Available Mentor"); }
+
+  return { score: Math.min(score, 100), reasons };
+}
+
+function generateIntro(target, reasons){
+  const [firstName] = target.name.split(" ");
+  const you = profile.name || "Quentin Vega";
+  const sharedBits = [];
+  if(profile.school && target.school === profile.school) sharedBits.push(`attended ${profile.school}`);
+  const sharedInterests = (target.interests||[]).filter(i=>(profile.interests||[]).includes(i));
+  if(sharedInterests.length) sharedBits.push(`share interests in ${sharedInterests.slice(0,2).join(" and ").toLowerCase()}`);
+  const sharedLine = sharedBits.length ? `I noticed we both ${sharedBits.join(" and ")}.` : `I came across your profile and thought it'd be great to connect.`;
+  const goalLine = (profile.careerGoals && profile.careerGoals.length) ? `I am currently exploring ${profile.careerGoals[0]} opportunities and would love to learn more about your experience.` : `I'd love to learn more about your experience at Dell.`;
+
+  return `Hi ${firstName},
+
+I discovered your profile through Dell Connect AI.
+
+${sharedLine}
+
+${goalLine}
+
+Would you be open to a quick coffee chat?
+
+Thanks,
+${you}`;
+}
+
+function renderRecommendations(){
+  const list = document.getElementById("recList");
+  if(!profile.name && !profile.school && !(profile.interests||[]).length){
+    list.innerHTML = `<div class="card"><div class="empty-state">Fill out <b>My Profile</b> first — recommendations are built entirely from your school, interests, skills, career goals, and ERGs.</div></div>`;
+    return;
+  }
+  const ranked = employees
+    .filter(e=>e.name !== profile.name)
+    .map(e=>({ e, ...computeMatch(e) }))
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,5);
+
+  list.innerHTML = ranked.map(({e, score, reasons})=>`
+    <div class="card rec-card">
+      <div class="score-badge">${score}%</div>
+      <div class="rec-main">
+        <div class="emp-head" style="margin-bottom:6px;">
+          <div class="avatar">${initials(e.name)}</div>
+          <div>
+            <p class="emp-name">${e.name}</p>
+            <p class="emp-role">${e.currentRole || "—"} · ${e.currentTeam || "—"}</p>
+          </div>
+        </div>
+        <p class="card-sub" style="margin-bottom:0;">Why We Matched</p>
+        <ul class="why-list">${reasons.length ? reasons.map(r=>`<li>${r}</li>`).join("") : "<li>New connection to explore</li>"}</ul>
+        <div class="emp-actions" style="margin-top:12px;">
+          <a class="btn btn-ghost btn-sm" href="mailto:${e.email||''}">✉ Email</a>
+          <button class="btn btn-primary btn-sm gen-intro-btn">Generate Introduction</button>
+        </div>
+        <div class="intro-box"></div>
+      </div>
+    </div>
+  `).join("");
+
+  document.querySelectorAll(".gen-intro-btn").forEach((btn, idx)=>{
+    btn.addEventListener("click", ()=>{
+      const { e, reasons } = ranked[idx];
+      const box = btn.closest(".rec-card").querySelector(".intro-box");
+      box.textContent = generateIntro(e, reasons);
+      box.style.display = "block";
+    });
+  });
+}
+
+/* =========================================================
+   ERGs — Section 9
+========================================================= */
+function renderERGs(){
+  const allErgs = uniqueVals(e=>e.ergs);
+  const recGrid = document.getElementById("ergRecGrid");
+  const allGrid = document.getElementById("ergAllGrid");
+
+  const recs = [];
+  allErgs.forEach(erg=>{
+    if((profile.ergs||[]).includes(erg)) return; // already a member
+    let reason = null;
+    const membersWithErg = employees.filter(e=>e.ergs.includes(erg));
+    const sharedInterest = membersWithErg.flatMap(e=>e.interests).find(i=>(profile.interests||[]).includes(i));
+    const sharedGoal = membersWithErg.flatMap(e=>e.careerGoals).find(g=>(profile.careerGoals||[]).includes(g));
+    if(sharedInterest) reason = `Shared interest: ${sharedInterest}`;
+    else if(sharedGoal) reason = `Aligned career goal: ${sharedGoal}`;
+    else if(profile.school && membersWithErg.some(e=>e.school===profile.school)) reason = `Fellow ${profile.school} alumni are active here`;
+    if(reason) recs.push({ erg, reason });
+  });
+  const finalRecs = recs.slice(0,6);
+  recGrid.innerHTML = finalRecs.length ? finalRecs.map(r=>`
+    <div class="erg-card"><h4>${r.erg}</h4><p>Reason: ${r.reason}</p></div>
+  `).join("") : `<div class="empty-state" style="grid-column:1/-1;">Complete your profile to get personalized ERG matches.</div>`;
+
+  allGrid.innerHTML = allErgs.map(erg=>{
+    const count = employees.filter(e=>e.ergs.includes(erg)).length;
+    return `<div class="erg-card" data-erg="${erg}" style="cursor:pointer;"><h4>${erg}</h4><p>${count} member${count===1?"":"s"} in the network</p></div>`;
+  }).join("");
+
+  document.querySelectorAll("#ergAllGrid .erg-card").forEach(card=>{
+    card.addEventListener("click", ()=>{
+      const erg = card.dataset.erg;
+      const members = employees.filter(e=>e.ergs.includes(erg));
+      document.getElementById("ergPeopleTitle").textContent = `${erg}: ${members.length} member${members.length===1?"":"s"}`;
+      document.getElementById("ergPeopleGrid").innerHTML = members.length ? members.map(e=>empCardHTML(e)).join("") :
+        `<div class="empty-state" style="grid-column:1/-1;">No members yet.</div>`;
+      document.getElementById("ergPeopleCard").style.display = "block";
+      document.getElementById("ergPeopleCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+    });
+  });
+}
+
+/* =========================================================
+   CAREER PATHS — Section 10
+========================================================= */
+function renderCareerPaths(){
+  const list = document.getElementById("pathList");
+  list.innerHTML = CAREER_PATHS.map((p,i)=>`
+    <div class="path-row" data-idx="${i}" style="cursor:pointer;">
+      <span>${p.from}</span><span class="arrow">→</span><span>${p.to}</span>
+    </div>
+  `).join("");
+  document.querySelectorAll(".path-row").forEach(row=>{
+    row.addEventListener("click", ()=>{
+      const p = CAREER_PATHS[row.dataset.idx];
+      const matches = employees.filter(e=>{
+        const fromMatch = [e.previousDellTeam, e.currentTeam, e.currentRole, ...(e.careerGoals||[])].join(" ").toLowerCase().includes(p.from.toLowerCase());
+        const toMatch = [e.currentTeam, e.currentRole, ...(e.careerGoals||[])].join(" ").toLowerCase().includes(p.to.toLowerCase());
+        return fromMatch || toMatch;
+      });
+      document.getElementById("pathPeopleTitle").textContent = `${p.from} → ${p.to}: People on this path`;
+      document.getElementById("pathPeopleGrid").innerHTML = matches.length ? matches.map(e=>empCardHTML(e)).join("") :
+        `<div class="empty-state" style="grid-column:1/-1;">No one currently matches this path exactly — try another.</div>`;
+      document.getElementById("pathPeopleCard").style.display = "block";
+    });
+  });
+}
+
+/* =========================================================
+   DASHBOARD / ANALYTICS — Section 11
+========================================================= */
+function mostCommon(getter){
+  const counts = {};
+  employees.forEach(e=>{
+    const v = getter(e);
+    const arr = Array.isArray(v) ? v : [v];
+    arr.forEach(x=>{ if(x) counts[x] = (counts[x]||0)+1; });
+  });
+  let best = null, bestCount = 0;
+  Object.keys(counts).forEach(k=>{ if(counts[k] > bestCount){ best = k; bestCount = counts[k]; } });
+  return { value: best || "—", count: bestCount };
+}
+
+function renderDashboard(){
+  document.getElementById("dashCount").textContent = `${employees.length} employees`;
+
+  const stats = [
+    { label:"Total Employees", value: employees.length },
+    { label:"Total Schools", value: uniqueVals(e=>e.school).length },
+    { label:"Total ERGs", value: uniqueVals(e=>e.ergs).length },
+    { label:"Total Locations", value: uniqueVals(e=>[e.location,e.hometown]).length },
+  ];
+  document.getElementById("statGrid").innerHTML = stats.map(s=>`
+    <div class="stat-card"><div class="stat-num">${s.value}</div><div class="stat-label">${s.label}</div></div>
+  `).join("");
+
+  const commonSchool = mostCommon(e=>e.school);
+  const commonInterest = mostCommon(e=>e.interests);
+  const commonTeam = mostCommon(e=>e.currentTeam);
+  document.getElementById("mostCommonGrid").innerHTML = `
+    <div class="stat-card"><div class="stat-num" style="font-size:18px;">${commonSchool.value}</div><div class="stat-label">Most Common School (${commonSchool.count})</div></div>
+    <div class="stat-card"><div class="stat-num" style="font-size:18px;">${commonInterest.value}</div><div class="stat-label">Most Common Interest (${commonInterest.count})</div></div>
+    <div class="stat-card"><div class="stat-num" style="font-size:18px;">${commonTeam.value}</div><div class="stat-label">Most Common Team (${commonTeam.count})</div></div>
+  `;
+}
+
+/* =========================================================
+   INIT
+========================================================= */
+function rerenderEverything(){
+  renderDashboard();
+  rebuildChipFilters();
+  renderDirectory();
+  renderAISearch();
+  renderRecommendations();
+  renderERGs();
+  renderCareerPaths();
+}
+
+function setSyncBanner(mode, text){
+  syncMode = mode;
+  const el = document.getElementById("syncBanner");
+  el.style.display = "block";
+  const colors = { local:"#C77700", syncing:"#5B6675", live:"#1E9E6B", error:"#C0392B" };
+  el.style.color = colors[mode] || "#5B6675";
+  el.textContent = text;
+}
+
+function startLocalMode(reason){
+  setSyncBanner("local", reason || "Running local-only: added employees stay in this browser tab and disappear on refresh. Add a Firebase config to sync everyone in real time.");
+}
+
+function startFirebaseSync(){
+  setSyncBanner("syncing", "Connecting to shared directory...");
+  try{
+    const app = firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    employeesRef = db.collection("employees");
+
+    employeesRef.limit(1).get().then(snapshot=>{
+      if(snapshot.empty){
+        // First person to connect seeds the shared directory once.
+        const batch = db.batch();
+        SEED_EMPLOYEES.forEach(e=>{
+          batch.set(employeesRef.doc(String(e.id)), e);
+        });
+        return batch.commit();
+      }
+    }).catch(err=>{
+      console.error("Seed failed:", err);
+    });
+
+    employeesRef.onSnapshot(snapshot=>{
+      employees = snapshot.docs.map(d=>d.data());
+      setSyncBanner("live", `Live — synced with everyone using this link (${employees.length} employees).`);
+      rerenderEverything();
+    }, err=>{
+      console.error("Sync error:", err);
+      startLocalMode("Couldn't reach the shared directory (check your Firebase config and Firestore rules). Falling back to local-only mode.");
+    });
+  } catch(err){
+    console.error("Firebase init failed:", err);
+    startLocalMode("Firebase config looks invalid. Falling back to local-only mode.");
+  }
+}
+
+function loadProfileFromLocalStorage(){
+  try{
+    const saved = localStorage.getItem("dellConnectProfile");
+    if(saved) Object.assign(profile, JSON.parse(saved));
+  } catch(err){ console.error("Could not load saved profile:", err); }
+}
+function saveProfileToLocalStorage(){
+  try{
+    localStorage.setItem("dellConnectProfile", JSON.stringify(profile));
+  } catch(err){ console.error("Could not save profile:", err); }
+}
+
+loadProfileFromLocalStorage();
+renderProfileForm();
+renderAddEmployeeForm();
+rerenderEverything();
+
+if(FIREBASE_CONFIGURED){
+  startFirebaseSync();
+} else {
+  startLocalMode();
+}
+</script>
+</body>
+</html>
